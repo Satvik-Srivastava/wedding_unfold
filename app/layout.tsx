@@ -4,8 +4,8 @@ import "@fontsource/caveat/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "unfold — a journal house",
-  description: "A pop-up book of rooms, drawn in blue ink.",
+  title: "unfold — a wedding invitation",
+  description: "A hand-drawn pop-up book invitation for a celebration together.",
 };
 
 export const viewport: Viewport = {
@@ -14,7 +14,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

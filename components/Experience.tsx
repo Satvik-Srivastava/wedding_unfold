@@ -6,7 +6,7 @@ import { ContactShadows } from "@react-three/drei";
 import Book from "./Book";
 import EventCard from "./EventCard";
 import Rsvp from "./Rsvp";
-import { WEDDING, eventByKey, fmtDay, setGuest } from "@/lib/wedding";
+import { applyWedding, createDefaultWedding, WEDDING, eventByKey, fmtDay, parseWeddingSettings, setGuest } from "@/lib/wedding";
 import { HandArrow, HandUnderline } from "./Hand";
 import { logicalOf } from "@/lib/fold";
 import { ROOMS } from "@/lib/invite";
@@ -18,6 +18,7 @@ const FONT = "Caveat";
 
 export default function Experience() {
   const [tex, setTex] = useState<BookTextures | null>(null);
+  const [settingsError, setSettingsError] = useState("");
   const [room, setRoom] = useState(0); // logical index
   const [open, setOpen] = useState(false);
   const [card, setCard] = useState<string | null>(null); // event key whose invite card is open
@@ -28,17 +29,33 @@ export default function Experience() {
   // Draw every surface once the handwriting font is ready (loose pen, a little colour).
   useEffect(() => {
     let alive = true;
+    const build = async () => {
+      try {
+        const response = await fetch("/api/wedding", { cache: "no-store" });
+        const result: unknown = await response.json();
+        if (!response.ok) {
+          const message = typeof result === "object" && result !== null && "error" in result ? String(result.error) : "Wedding details could not be loaded.";
+          throw new Error(message);
+        }
+        applyWedding(parseWeddingSettings(result));
+        setSettingsError("");
+      } catch (error) {
+        applyWedding(createDefaultWedding());
+        if (alive) setSettingsError(error instanceof Error ? error.message : "The invitation settings could not be loaded.");
+      }
+      look.pen = "sketchy";
+      look.color = true;
+      if (alive) setTex(buildTextures(`${FONT}, cursive`));
+    };
     (async () => {
       try {
         await Promise.all([document.fonts.load(`700 64px ${FONT}`), document.fonts.load(`500 64px ${FONT}`)]);
       } catch {
         /* fall back to whatever cursive font is around */
       }
-      look.pen = "sketchy";
-      look.color = true;
-      // a personal link: ?to=the%20sharma%20family puts their name on the cover
+      // A personal link can write a guest's name on the cover.
       setGuest(new URLSearchParams(window.location.search).get("to") ?? "");
-      if (alive) setTex(buildTextures(`${FONT}, cursive`));
+      await build();
     })();
     return () => {
       alive = false;
@@ -126,7 +143,19 @@ export default function Experience() {
             <ContactShadows position={[0, -0.04, 0]} scale={5} resolution={512} far={1.4} blur={2.4} opacity={0.32} color="#2a2350" frames={Infinity} />
           </Canvas>
         )}
-        {!tex && <div className="loading">sharpening pencils…</div>}
+        {!tex && (
+          <div className="loading" role="status" aria-live="polite" aria-atomic="true">
+            <svg className="loading-flower" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M24 24C17 21 18 11 24 6c6 5 7 15 0 18Z" />
+              <path d="M24 24c3-7 13-6 18 0-5 6-15 7-18 0Z" />
+              <path d="M24 24c7 3 6 13 0 18-6-5-7-15 0-18Z" />
+              <path d="M24 24c-3 7-13 6-18 0 5-6 15-7 18 0Z" />
+              <circle cx="24" cy="24" r="3" />
+            </svg>
+            <span>folding a little celebration for you…</span>
+          </div>
+        )}
+        {settingsError && <p className="invite-settings-error" role="status">{settingsError} You can review these details at /admin.</p>}
       </div>
 
       <button

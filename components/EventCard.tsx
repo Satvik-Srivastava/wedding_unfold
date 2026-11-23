@@ -26,7 +26,11 @@ export default function EventCard({ ev, onClose, onRsvp }: { ev: WeddingEvent; o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const map = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ev.venue}, ${ev.address}`)}`;
+  const location = [ev.venue, ev.address].filter(Boolean).join(", ");
+  const map = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  const brideParents = [WEDDING.parents.brideFather, WEDDING.parents.brideMother].filter(Boolean).join(" & ");
+  const groomParents = [WEDDING.parents.groomFather, WEDDING.parents.groomMother].filter(Boolean).join(" & ");
+  const couple = WEDDING.couple.filter(Boolean).join(" & ");
 
   return (
     <div className={`cu ${leaving ? "leaving" : ""}`} onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -38,33 +42,58 @@ export default function EventCard({ ev, onClose, onRsvp }: { ev: WeddingEvent; o
       </button>
       <article className={`ev-card ev-${ev.key}`}>
         <div className="ev-inner">
-          <div className="ev-hosts">{WEDDING.couple.join(" & ")} invite you to</div>
+          <div className="ev-hosts">{couple ? `${couple} invite you to` : "you are warmly invited to"}</div>
           <h2 className="ev-name">{ev.name}</h2>
           <div className="ev-tagline">{ev.tagline}</div>
+          {(WEDDING.portraits.bride || WEDDING.portraits.groom) && (
+            <div className="ev-portraits" aria-label="Hand-drawn portraits of the couple">
+              {WEDDING.portraits.bride && <img src={WEDDING.portraits.bride} alt={`${WEDDING.couple[0] || "Bride"} portrait`} />}
+              {WEDDING.portraits.groom && <img src={WEDDING.portraits.groom} alt={`${WEDDING.couple[1] || "Groom"} portrait`} />}
+            </div>
+          )}
+          {(brideParents || groomParents) && (
+            <div className="ev-family">
+              {brideParents && <p>{WEDDING.couple[0] || "Bride"} · child of {brideParents}</p>}
+              {groomParents && <p>{WEDDING.couple[1] || "Groom"} · child of {groomParents}</p>}
+            </div>
+          )}
           <div className="ev-rule" aria-hidden="true" />
           <dl className="ev-facts">
-            <dt>when</dt>
-            <dd>
-              {fmtDate(ev.start)}
-              <br />
-              {fmtTime(ev.start)} onwards
-            </dd>
-            <dt>where</dt>
-            <dd>
-              {ev.venue}
-              <br />
-              <span className="ev-small">{ev.address}</span>
-            </dd>
-            <dt>wear</dt>
-            <dd>{ev.dress}</dd>
+            {ev.start && (
+              <>
+                <dt>when</dt>
+                <dd>
+                  {fmtDate(ev.start)}
+                  <br />
+                  {fmtTime(ev.start)}{ev.end ? ` – ${fmtTime(ev.end)}` : " onwards"}
+                </dd>
+              </>
+            )}
+            {location && (
+              <>
+                <dt>where</dt>
+                <dd>
+                  {ev.venue}
+                  {ev.address && <><br /><span className="ev-small">{ev.address}</span></>}
+                </dd>
+              </>
+            )}
+            {ev.dress && (
+              <>
+                <dt>wear</dt>
+                <dd>{ev.dress}</dd>
+              </>
+            )}
+            {!ev.start && !location && !ev.dress && (
+              <>
+                <dt>details</dt>
+                <dd>being lovingly arranged</dd>
+              </>
+            )}
           </dl>
           <div className="ev-actions">
-            <a className="ev-stamp" href={map} target="_blank" rel="noreferrer">
-              open the map
-            </a>
-            <button className="ev-stamp" onClick={() => downloadIcs(ev)}>
-              add to calendar
-            </button>
+            {location && <a className="ev-stamp" href={map} target="_blank" rel="noreferrer">open the map</a>}
+            {ev.start && <button className="ev-stamp" onClick={() => downloadIcs(ev)}>add to calendar</button>}
             <button className="ev-stamp ev-rsvp" onClick={onRsvp}>
               rsvp
             </button>

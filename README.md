@@ -1,65 +1,72 @@
 # unfold
 
-> **Branch `wedding-invite`:** the book as a wedding invitation. Each page is one event (haldi,
-> the party, the wedding, reception) with an invite card pinned in the scene; tap it
-> for the date, venue, dress code, a map link and an add-to-calendar file, and RSVP from the top
-> right. Names, dates and places live in `lib/wedding.ts` (mock data for now), the rooms in
-> `lib/invite.ts`. Personal links: `?to=the%20sharma%20family` writes the guest's name on the cover.
-> RSVPs are only kept in the browser for now.
+A hand-drawn Indian wedding invitation inside a pop-up book. Each room celebrates an event;
+open its card for the time, venue, family details, dress note, map and calendar options, or RSVP.
 
-A journal house: a hand-drawn pop-up book whose rooms fold open one at a time.
-
-- **Full-circle book** — pages radiate from the spine all the way round, like a carousel pop-up
-  book. The room in front opens to a right angle with its creased floor flat and its pop-up
-  furniture standing; turning keeps going round, from the last room back to the first.
-- **Hybrid style** — everything is blue-ink line art on paper; the room in front washes with colour.
-- **Four rooms** — bedroom, bathroom, kitchen, balcony. See [ROOMS.md](./ROOMS.md).
-
-## Journal
-
-Each room has one place you write: the cork board (bedroom), the mirror (bathroom), the fridge
-door (kitchen) and the diary on the bean bag (balcony). Click it when the room is in front and the
-camera moves in on it, then opens a close-up (`components/Closeup.tsx`):
-
-- the cork board, mirror and fridge show your notes stuck on them (pins, tape, magnets); click +
-  or a note to lift it off and write; Cmd/Ctrl+Enter or "pin it" sticks it back on
-- the diary opens as a two-page spread: past pages listed on the left, today's page on the right
-- "tear out" crumples a note away; Esc puts a note back, then closes the close-up
-
-Entries are saved in this browser only (localStorage, `unfold.entries.v1`), through the async
-functions in `lib/journal.ts`, so moving them to a server later only means changing that file.
-Spots are marked inside the drawings with `s.mark("journal", ...)` / `iso.mark(...)`; their
-names and prompts live in `lib/spots.ts`.
-
-## Run
+## Run it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Arrow keys or the side arrows page through rooms, drag sideways to
-flip, Enter / double-click opens and closes the book.
+Open http://localhost:3000. Use the arrows, keyboard arrows, or a sideways drag to move through
+the book. Open an event card by tapping the invitation in its room.
+
+## Configure shared wedding settings
+
+The admin editor saves wedding details and processed portraits to Supabase, so guests on other
+devices see the same invitation. Set up Supabase once before running the app:
+
+1. Create a Supabase project.
+2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+3. Copy `.env.example` to `.env.local` and fill in the project's URL and publishable (or legacy
+   anon) key from **Project Settings → API**. Never put a `service_role` or secret key in this app.
+4. In **Authentication → Providers → Email**, disable public sign-ups.
+5. In **Authentication → Users**, create the admin account with an email and password.
+6. In the SQL Editor, mark that account as the wedding administrator, replacing the example email:
+
+   ```sql
+   update auth.users
+   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"wedding_admin"}'::jsonb
+   where email = 'admin@example.com';
+   ```
+
+7. Restart `npm run dev`, then sign in at http://localhost:3000/admin.
+
+Enter the couple's names, parents' names, city, RSVP date and each celebration's details.
+Portraits are stylized on the device before being saved with the shared invitation. Save to publish
+your changes to guests. If this browser had settings from the earlier local-only version, the admin
+editor offers to import them after you sign in.
+
+RSVP replies remain local to the guest's browser; shared RSVP collection is not configured.
+
+Personal links: `?to=the%20sharma%20family` writes a guest's name on the cover.
+
+## The book
+
+The original book folds open into one illustrated room for each part of the celebration, with
+hand-drawn Indian wedding details including marigold garlands, a haldi courtyard, a mandap and
+rangoli. The full-circle pages turn with the arrow controls, keyboard or a sideways drag.
 
 ## How it's built
 
+Next.js App Router, React, React Three Fiber, drei, three.js and Caveat (`@fontsource/caveat`).
+The room drawings are generated in code; there is no artwork asset folder.
+
 | File | What it does |
 |------|--------------|
-| `lib/fold.ts` | Fold geometry: page angles for a focus position, the floor's crease apex, camera focus. |
-| `lib/sketch.ts` | Tiny hand-drawn 2D renderer (wobbly ink lines, watercolour fills, hatching) and `bake()`, which packs ink + wash + cut-out mask into one texture. |
-| `lib/rooms.ts` | The drawings for every wall, floor and pop-up, plus the covers. |
-| `lib/paperMaterial.ts` | Shader: paper grain, watercolour reveal, soft light, pen hatching on shadowed faces. |
-| `components/Book.tsx` | The R3F scene: pages, folding floors, pop-ups, camera. |
-| `components/Experience.tsx` | Canvas, controls, drag + keyboard input, captions. |
-
-Stack: Next.js (App Router), React Three Fiber, drei, three.js. Handwriting is Caveat via `@fontsource/caveat`.
-
-### The floor fold
-
-Each floor is a square creased on its diagonal. With walls at angle θ apart, the crease apex sits at
-distance `L / cos(θ/2)` along the bisector and height `sqrt(2L² − (L / cos(θ/2))²)`: flat at 90°,
-standing straight up when the book is shut.
-
-## License
-
-[MIT](LICENSE)
+| `app/page.tsx` | Public invitation. |
+| `app/admin/page.tsx` | Signed-in editor for shared wedding details and portraits. |
+| `app/globals.css` | Paper, invitation and responsive editor styles. |
+| `lib/wedding.ts` | Wedding data types, defaults, parsing and formatting. |
+| `lib/supabase.ts` | Supabase browser and server configuration. |
+| `app/api/wedding/route.ts` | Public invitation reads and authenticated admin writes. |
+| `supabase/schema.sql` | Shared settings table and row-level access policies. |
+| `lib/portrait.ts` | On-device, hand-drawn portrait treatment. |
+| `lib/invite.ts` | Event-room illustrations and book covers. |
+| `lib/fold.ts` | Page angles, floor crease and camera geometry. |
+| `components/Book.tsx` | The 3D pop-up book. |
+| `components/Experience.tsx` | Canvas, navigation, captions and settings hydration. |
+| `components/EventCard.tsx` | Event details, portraits, map and calendar actions. |
+| `components/Rsvp.tsx` | RSVP form and local browser persistence. |

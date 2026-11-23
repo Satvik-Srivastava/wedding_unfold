@@ -84,7 +84,7 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
             </div>
           ) : (
             <>
-              <div className="ev-hosts">kindly reply by {WEDDING.rsvpBy}</div>
+              <div className="ev-hosts">{WEDDING.rsvpBy ? `kindly reply by ${WEDDING.rsvpBy}` : "we would love to hear from you"}</div>
               <h2 className="ev-name">rsvp</h2>
               <label className="rsvp-field">
                 <span>your name</span>
@@ -130,7 +130,7 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
               </div>
               <label className="rsvp-field">
                 <span>a note for the couple</span>
-                <textarea rows={2} value={note} placeholder="can't wait to dance at the party!" onChange={(e) => setNote(e.target.value)} />
+                <textarea rows={2} value={note} placeholder="leave a note for the couple" onChange={(e) => setNote(e.target.value)} />
               </label>
               <div className="ev-actions">
                 {error && <span className="cu-error">{error}</span>}

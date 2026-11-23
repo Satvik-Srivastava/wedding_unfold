@@ -1042,12 +1042,22 @@ export function drawFrontCover(s: Sketch) {
     flower(s, x, y, 0.018, MARIGOLD[0]);
   garland(s, 0.1, 0.9, 0.06, 0.08, 0.013);
   s.text(WEDDING.hosts, 0.5, 0.3, 0.035, { weight: 500 });
-  s.text(WEDDING.couple[0], 0.5, 0.42, 0.11);
-  s.text("&", 0.5, 0.52, 0.06, { weight: 500 });
-  s.text(WEDDING.couple[1], 0.5, 0.62, 0.11);
-  const first = WEDDING.events[0].start;
-  const last = WEDDING.events[WEDDING.events.length - 1].start;
-  s.text(`${fmtDay(first).split(" ").slice(1).join(" ")} – ${fmtDay(last).split(" ").slice(1).join(" ")} · ${WEDDING.city}`, 0.5, 0.72, 0.035, { weight: 500 });
+  const [bride, groom] = WEDDING.couple;
+  if (bride || groom) {
+    s.text(bride, 0.5, 0.42, 0.11);
+    s.text("&", 0.5, 0.52, 0.06, { weight: 500 });
+    s.text(groom, 0.5, 0.62, 0.11);
+  } else {
+    s.text("a celebration of love", 0.5, 0.52, 0.075);
+  }
+  const dates = WEDDING.events.map((event) => event.start).filter(Boolean);
+  const dateRange = dates.length
+    ? dates.length === 1
+      ? fmtDay(dates[0]).split(" ").slice(1).join(" ")
+      : `${fmtDay(dates[0]).split(" ").slice(1).join(" ")} – ${fmtDay(dates[dates.length - 1]).split(" ").slice(1).join(" ")}`
+    : "";
+  const coverDetails = [dateRange, WEDDING.city].filter(Boolean).join(" · ");
+  s.text(coverDetails || "details to follow", 0.5, 0.72, 0.035, { weight: 500 });
   const g = getGuest();
   if (g) {
     s.line(0.3, 0.8, 0.7, 0.795, { w: 1.2 });
