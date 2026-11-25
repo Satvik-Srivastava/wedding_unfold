@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { createDefaultWedding, parseWeddingSettings, type WeddingConfig } from "@/lib/wedding";
-import { makeHandDrawnPortrait } from "@/lib/portrait";
+import { generateWeddingPortrait, type PortraitPerson } from "@/lib/portrait";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 function messageOf(error: unknown) {
@@ -20,7 +20,8 @@ export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
-  const [processing, setProcessing] = useState<"bride" | "groom" | null>(null);
+  const [processing, setProcessing] = useState<Set<PortraitPerson>>(() => new Set());
+  const [portraitErrors, setPortraitErrors] = useState<Partial<Record<PortraitPerson, string>>>({});
 
   useEffect(() => {
     let active = true;
@@ -95,18 +96,22 @@ export default function AdminPage() {
     setError("");
   };
 
-  const uploadPortrait = async (person: "bride" | "groom", file: File | undefined) => {
-    if (!file) return;
-    setProcessing(person);
-    setError("");
+  const uploadPortrait = async (person: PortraitPerson, file: File | undefined) => {
+    if (!file || !session) return;
+    setProcessing((current) => new Set(current).add(person));
+    setPortraitErrors((current) => ({ ...current, [person]: undefined }));
     setStatus("");
     try {
-      const portrait = await makeHandDrawnPortrait(file);
+      const portrait = await generateWeddingPortrait(file, person, session.access_token);
       setConfig((current) => ({ ...current, portraits: { ...current.portraits, [person]: portrait } }));
     } catch (uploadError) {
-      setError(messageOf(uploadError));
+      setPortraitErrors((current) => ({ ...current, [person]: messageOf(uploadError) }));
     } finally {
-      setProcessing(null);
+      setProcessing((current) => {
+        const next = new Set(current);
+        next.delete(person);
+        return next;
+      });
     }
   };
 
@@ -344,9 +349,12 @@ export default function AdminPage() {
                 <span className="admin-number">02</span>
                 <div>
                   <h2>Portraits, drawn by hand</h2>
-                  <p>Choose a clear photo; it is restyled on your device into a warm, ink-and-watercolour portrait. Save the invitation to share it with guests.</p>
+                  <p>Each clear photo is sent separately to create a hand-drawn portrait that keeps the person recognizable. Save the invitation to share it with guests.</p>
                 </div>
               </div>
+              <p className="admin-portrait-disclosure" role="note">
+                Portrait creation uses OpenAI&apos;s paid image-edit service. Each selected photo is sent separately; facial resemblance can vary. OpenAI may retain API inputs for up to 30 days under its standard abuse-monitoring policy.
+              </p>
               <div className="admin-portraits">
                 {(["bride", "groom"] as const).map((person) => (
                   <div className="admin-portrait-card" key={person}>
@@ -359,12 +367,13 @@ export default function AdminPage() {
                       )}
                     </div>
                     <label className="admin-upload">
-                      <span>{processing === person ? "drawing your portrait…" : `choose ${person}'s photo`}</span>
-                      <input type="file" accept="image/*" disabled={processing !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void uploadPortrait(person, file); }} />
+                      <span>{processing.has(person) ? "drawing your portrait…" : `choose ${person}'s photo`}</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={processing.has(person)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void uploadPortrait(person, file); }} />
                     </label>
                     <p className="admin-portrait-note">
-                      Stylized on this device; the original face, hairstyle and outfit are preserved. For the clearest resemblance, use a well-lit photo of one person.
+                      Use a clear, well-lit photo of one person. The illustration is generated independently for the {person}.
                     </p>
+                    {portraitErrors[person] && <p className="admin-error" role="alert">{portraitErrors[person]}</p>}
                     {config.portraits[person] && (
                       <button
                         className="admin-remove"
