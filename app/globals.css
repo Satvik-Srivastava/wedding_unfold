@@ -1587,6 +1587,15 @@ body {
   line-height: 1;
 }
 
+.admin-portrait-note {
+  max-width: 290px;
+  margin: 0;
+  color: #805f4d;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
 .admin-upload {
   position: relative;
   overflow: hidden;

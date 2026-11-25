@@ -1,13 +1,44 @@
 const WIDTH = 640;
 const HEIGHT = 800;
 
-const palette = [
-  [88, 42, 37],
-  [132, 67, 45],
-  [177, 108, 65],
-  [216, 164, 104],
-  [242, 219, 174],
-];
+export function inkWash(source: Uint8ClampedArray, width: number, height: number) {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || source.length !== width * height * 4) {
+    throw new Error("The portrait image data is invalid.");
+  }
+
+  const result = new Uint8ClampedArray(source);
+  const luminance = new Float32Array(width * height);
+  const tones = [30, 52, 76, 101, 128, 155, 181, 207, 231, 248];
+
+  for (let pixel = 0; pixel < luminance.length; pixel++) {
+    const index = pixel * 4;
+    luminance[pixel] = source[index] * 0.2126 + source[index + 1] * 0.7152 + source[index + 2] * 0.0722;
+  }
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixel = y * width + x;
+      const index = pixel * 4;
+      const current = luminance[pixel];
+      const left = luminance[y * width + Math.max(0, x - 1)];
+      const right = luminance[y * width + Math.min(width - 1, x + 1)];
+      const above = luminance[Math.max(0, y - 1) * width + x];
+      const below = luminance[Math.min(height - 1, y + 1) * width + x];
+      const edgeStrength = Math.abs(right - left) + Math.abs(below - above);
+      const tone = tones.reduce((nearest, value) => (Math.abs(value - current) < Math.abs(nearest - current) ? value : nearest), tones[0]);
+      const factor = current > 1 ? tone / current : 1;
+      const grain = Math.sin(x * 0.17 + y * 0.11) * 1.2;
+      const ink = Math.min(0.7, Math.max(0, (edgeStrength - 78) / 170));
+
+      result[index] = (source[index] * factor + grain + 5) * (1 - ink) + 77 * ink;
+      result[index + 1] = (source[index + 1] * factor + grain + 1) * (1 - ink) + 45 * ink;
+      result[index + 2] = (source[index + 2] * factor + grain - 4) * (1 - ink) + 40 * ink;
+      result[index + 3] = 255;
+    }
+  }
+
+  return result;
+}
 
 async function decodeImage(file: File) {
   if (typeof createImageBitmap === "function") {
@@ -75,31 +106,11 @@ export async function makeHandDrawnPortrait(file: File): Promise<string> {
       sy = (image.height - sh) / 2;
     }
 
-    context.filter = "grayscale(100%) contrast(1.12) brightness(1.04)";
+    context.filter = "saturate(1.12) contrast(1.08) brightness(1.02)";
     context.drawImage(image.source, sx, sy, sw, sh, inset, inset, frameWidth, frameHeight);
     context.filter = "none";
     const pixels = context.getImageData(inset, inset, frameWidth, frameHeight);
-    const source = new Uint8ClampedArray(pixels.data);
-    const width = frameWidth;
-    const height = frameHeight;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = (y * width + x) * 4;
-        const current = source[index] * 0.299 + source[index + 1] * 0.587 + source[index + 2] * 0.114;
-        const leftIndex = y * width + Math.max(0, x - 1);
-        const aboveIndex = Math.max(0, y - 1) * width + x;
-        const left = source[leftIndex * 4];
-        const above = source[aboveIndex * 4];
-        const edge = Math.abs(current - left) + Math.abs(current - above) > 68;
-        const shade = Math.min(palette.length - 1, Math.floor(current / 52));
-        const color = palette[edge ? 0 : shade];
-        pixels.data[index] = color[0];
-        pixels.data[index + 1] = color[1];
-        pixels.data[index + 2] = color[2];
-        pixels.data[index + 3] = 255;
-      }
-    }
+    pixels.data.set(inkWash(pixels.data, frameWidth, frameHeight));
     context.putImageData(pixels, inset, inset);
 
     context.strokeStyle = "#8b302b";
@@ -108,11 +119,13 @@ export async function makeHandDrawnPortrait(file: File): Promise<string> {
     context.strokeStyle = "#d4a84e";
     context.lineWidth = 2;
     context.strokeRect(31, 31, WIDTH - 62, HEIGHT - 62);
-    context.fillStyle = "#d08a31";
-    for (const [x, y] of [[32, 32], [WIDTH - 32, 32], [32, HEIGHT - 32], [WIDTH - 32, HEIGHT - 32]]) {
-      context.beginPath();
-      context.arc(x, y, 4, 0, Math.PI * 2);
-      context.fill();
+    for (let x = 42; x <= WIDTH - 42; x += 24) {
+      for (const y of [42, HEIGHT - 42]) {
+        context.fillStyle = (x / 24) % 2 < 1 ? "#d08a31" : "#b87935";
+        context.beginPath();
+        context.arc(x, y, 1.4, 0, Math.PI * 2);
+        context.fill();
+      }
     }
 
     return canvas.toDataURL("image/jpeg", 0.84);

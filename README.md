@@ -35,9 +35,11 @@ devices see the same invitation. Set up Supabase once before running the app:
 7. Restart `npm run dev`, then sign in at http://localhost:3000/admin.
 
 Enter the couple's names, parents' names, city, RSVP date and each celebration's details.
-Portraits are stylized on the device before being saved with the shared invitation. Save to publish
-your changes to guests. If this browser had settings from the earlier local-only version, the admin
-editor offers to import them after you sign in.
+Portraits are stylized on the device and saved separately with the shared invitation. This
+privacy-preserving browser filter keeps the uploaded face, hairstyle and outfit recognizable; it
+does not generate new clothing or guarantee a full bridal/groom character transformation. Save to
+publish your changes to guests. If this browser had settings from the earlier local-only version,
+the admin editor offers to import them after you sign in.
 
 RSVP replies remain local to the guest's browser; shared RSVP collection is not configured.
 

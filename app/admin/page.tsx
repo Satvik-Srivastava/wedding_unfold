@@ -362,6 +362,9 @@ export default function AdminPage() {
                       <span>{processing === person ? "drawing your portrait…" : `choose ${person}'s photo`}</span>
                       <input type="file" accept="image/*" disabled={processing !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void uploadPortrait(person, file); }} />
                     </label>
+                    <p className="admin-portrait-note">
+                      Stylized on this device; the original face, hairstyle and outfit are preserved. For the clearest resemblance, use a well-lit photo of one person.
+                    </p>
                     {config.portraits[person] && (
                       <button
                         className="admin-remove"
