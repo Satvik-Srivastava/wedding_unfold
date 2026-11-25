@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { createDefaultWedding, parseWeddingSettings, type WeddingConfig } from "@/lib/wedding";
-import { makeHandDrawnPortrait } from "@/lib/portrait";
+import { preparePortraitPhoto, type PortraitPerson } from "@/lib/portrait";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 function messageOf(error: unknown) {
@@ -20,7 +20,8 @@ export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
-  const [processing, setProcessing] = useState<"bride" | "groom" | null>(null);
+  const [uploading, setUploading] = useState<Set<PortraitPerson>>(() => new Set());
+  const [photoErrors, setPhotoErrors] = useState<Partial<Record<PortraitPerson, string>>>({});
 
   useEffect(() => {
     let active = true;
@@ -95,18 +96,22 @@ export default function AdminPage() {
     setError("");
   };
 
-  const uploadPortrait = async (person: "bride" | "groom", file: File | undefined) => {
-    if (!file) return;
-    setProcessing(person);
-    setError("");
+  const uploadPhoto = async (person: PortraitPerson, file: File | undefined) => {
+    if (!file || !session) return;
+    setUploading((current) => new Set(current).add(person));
+    setPhotoErrors((current) => ({ ...current, [person]: undefined }));
     setStatus("");
     try {
-      const portrait = await makeHandDrawnPortrait(file);
+      const portrait = await preparePortraitPhoto(file);
       setConfig((current) => ({ ...current, portraits: { ...current.portraits, [person]: portrait } }));
     } catch (uploadError) {
-      setError(messageOf(uploadError));
+      setPhotoErrors((current) => ({ ...current, [person]: messageOf(uploadError) }));
     } finally {
-      setProcessing(null);
+      setUploading((current) => {
+        const next = new Set(current);
+        next.delete(person);
+        return next;
+      });
     }
   };
 
@@ -333,7 +338,7 @@ export default function AdminPage() {
                   <input autoComplete="address-level2" maxLength={80} value={config.city} onChange={(event) => { setConfig((current) => ({ ...current, city: event.target.value })); setStatus(""); setError(""); }} placeholder="City of the celebration" />
                 </label>
                 <label className="admin-field">
-                  <span>RSVP by</span>
+                  <span>Reply by</span>
                   <input maxLength={80} value={config.rsvpBy} onChange={(event) => { setConfig((current) => ({ ...current, rsvpBy: event.target.value })); setStatus(""); setError(""); }} placeholder="Reply-by date" />
                 </label>
               </div>
@@ -343,8 +348,8 @@ export default function AdminPage() {
               <div className="admin-section-heading">
                 <span className="admin-number">02</span>
                 <div>
-                  <h2>Portraits, drawn by hand</h2>
-                  <p>Choose a clear photo; it is restyled on your device into a warm, ink-and-watercolour portrait. Save the invitation to share it with guests.</p>
+                  <h2>The couple&apos;s photos</h2>
+                  <p>Upload a photo for each person. The invitation uses your actual photos without AI generation or artistic filters. Save to share them with guests.</p>
                 </div>
               </div>
               <div className="admin-portraits">
@@ -353,15 +358,19 @@ export default function AdminPage() {
                     <div className="admin-portrait-frame">
                       {config.portraits[person] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={config.portraits[person]} alt={`Hand-drawn ${person} portrait preview`} />
+                        <img src={config.portraits[person]} alt={`Uploaded ${person} photo preview`} />
                       ) : (
-                        <span className="admin-portrait-empty">portrait<br />awaits</span>
+                        <span className="admin-portrait-empty">photo<br />awaits</span>
                       )}
                     </div>
                     <label className="admin-upload">
-                      <span>{processing === person ? "drawing your portrait…" : `choose ${person}'s photo`}</span>
-                      <input type="file" accept="image/*" disabled={processing !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void uploadPortrait(person, file); }} />
+                      <span>{uploading.has(person) ? "adding your photo…" : `choose ${person}'s photo`}</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading.has(person)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void uploadPhoto(person, file); }} />
                     </label>
+                    <p className="admin-portrait-note">
+                      The uploaded photo is used as-is (resized locally for storage). Choose one photo for the {person}.
+                    </p>
+                    {photoErrors[person] && <p className="admin-error" role="alert">{photoErrors[person]}</p>}
                     {config.portraits[person] && (
                       <button
                         className="admin-remove"

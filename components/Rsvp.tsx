@@ -7,10 +7,6 @@ const KEY = "unfold.rsvp.v1";
 
 type Reply = { name: string; events: string[]; guests: number; note: string; sentAt: number };
 
-/**
- * The RSVP card. For now replies are only kept in this browser (mock); a real invite would send
- * them to the couple (a small database, a form, or a prefilled WhatsApp message).
- */
 export default function Rsvp({ onClose, preselect }: { onClose: () => void; preselect?: string }) {
   const [name, setName] = useState(getGuest());
   const [events, setEvents] = useState<string[]>(preselect ? [preselect] : []);
@@ -19,6 +15,7 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
   const [error, setError] = useState("");
   const [sent, setSent] = useState<Reply | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     try {
@@ -29,8 +26,8 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
         setGuests(prev.guests);
         setNote(prev.note);
       }
-    } catch {
-      /* nothing saved yet */
+    } catch (storageError) {
+      console.warn("Could not restore this browser's previous greeting:", storageError);
     }
   }, []);
 
@@ -47,16 +44,36 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
 
   const toggle = (k: string) => setEvents((list) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]));
 
-  const send = () => {
+  const send = async () => {
     if (!name.trim()) return setError("tell us who you are");
-    if (events.length === 0) return setError("tick at least one event, or say a sad no below");
+    if (events.length === 0) return setError("tick at least one event");
     const reply: Reply = { name: name.trim(), events, guests, note: note.trim(), sentAt: Date.now() };
+    setError("");
+    setSending(true);
     try {
-      localStorage.setItem(KEY, JSON.stringify(reply));
-    } catch {
-      /* ignore */
+      const response = await fetch("/api/greeting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: reply.name, events: reply.events, guests: reply.guests, note: reply.note }),
+      });
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        const message = typeof result === "object" && result !== null && "error" in result
+          ? String(result.error)
+          : "Your greeting could not be sent. Please try again.";
+        throw new Error(message);
+      }
+      try {
+        localStorage.setItem(KEY, JSON.stringify(reply));
+      } catch (storageError) {
+        console.warn("Greeting was emailed, but could not be saved in this browser:", storageError);
+      }
+      setSent(reply);
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "Your greeting could not be sent. Please try again.");
+    } finally {
+      setSending(false);
     }
-    setSent(reply);
   };
 
   return (
@@ -84,8 +101,8 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
             </div>
           ) : (
             <>
-              <div className="ev-hosts">{WEDDING.rsvpBy ? `kindly reply by ${WEDDING.rsvpBy}` : "we would love to hear from you"}</div>
-              <h2 className="ev-name">rsvp</h2>
+              <div className="ev-hosts">{WEDDING.rsvpBy ? `kindly share your reply by ${WEDDING.rsvpBy}` : "we would love to hear from you"}</div>
+              <h2 className="ev-name">send a greeting</h2>
               <label className="rsvp-field">
                 <span>your name</span>
                 <input
@@ -134,8 +151,8 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
               </label>
               <div className="ev-actions">
                 {error && <span className="cu-error">{error}</span>}
-                <button className="ev-stamp ev-rsvp" onClick={send}>
-                  send my reply
+                <button className="ev-stamp ev-rsvp" onClick={() => void send()} disabled={sending}>
+                  {sending ? "sending…" : "send greeting"}
                 </button>
               </div>
             </>

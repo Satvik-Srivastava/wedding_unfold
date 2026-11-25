@@ -46,9 +46,9 @@ export default function EventCard({ ev, onClose, onRsvp }: { ev: WeddingEvent; o
           <h2 className="ev-name">{ev.name}</h2>
           <div className="ev-tagline">{ev.tagline}</div>
           {(WEDDING.portraits.bride || WEDDING.portraits.groom) && (
-            <div className="ev-portraits" aria-label="Hand-drawn portraits of the couple">
-              {WEDDING.portraits.bride && <img src={WEDDING.portraits.bride} alt={`${WEDDING.couple[0] || "Bride"} portrait`} />}
-              {WEDDING.portraits.groom && <img src={WEDDING.portraits.groom} alt={`${WEDDING.couple[1] || "Groom"} portrait`} />}
+            <div className="ev-portraits" aria-label="Photos of the couple">
+              {WEDDING.portraits.bride && <img src={WEDDING.portraits.bride} alt={`${WEDDING.couple[0] || "Bride"} photo`} />}
+              {WEDDING.portraits.groom && <img src={WEDDING.portraits.groom} alt={`${WEDDING.couple[1] || "Groom"} photo`} />}
             </div>
           )}
           {(brideParents || groomParents) && (
@@ -95,7 +95,7 @@ export default function EventCard({ ev, onClose, onRsvp }: { ev: WeddingEvent; o
             {location && <a className="ev-stamp" href={map} target="_blank" rel="noreferrer">open the map</a>}
             {ev.start && <button className="ev-stamp" onClick={() => downloadIcs(ev)}>add to calendar</button>}
             <button className="ev-stamp ev-rsvp" onClick={onRsvp}>
-              rsvp
+              send greeting
             </button>
           </div>
         </div>

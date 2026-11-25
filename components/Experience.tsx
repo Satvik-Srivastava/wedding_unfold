@@ -121,11 +121,11 @@ export default function Experience() {
     <main className="stage">
       <header className="topbar">
         <div className="wordmark">
-          {WEDDING.initials}
+          unfold
           <HandUnderline />
         </div>
         <button className={`hand-btn rsvp-btn ${writing ? "is-hidden" : ""}`} onClick={() => setRsvp("")}>
-          rsvp
+          send greeting
         </button>
       </header>
 
